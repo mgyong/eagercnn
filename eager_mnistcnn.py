@@ -9,7 +9,6 @@ import sys
 import time
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 from tensorflow.python.keras.layers import Input, Dense
 from tensorflow.python.keras.models import Sequential
@@ -172,73 +171,72 @@ class MNISTEagerArgParser(argparse.ArgumentParser):
 if __name__ == "__main__":
     tfe.enable_eager_execution()
 
-    with tf.device('/gpu:0'):
-        #tf.logging.set_verbosity(tf.logging.INFO)
-        parser = MNISTEagerArgParser()
-        flags = parser.parse_args()
-        print(flags)
+    #tf.logging.set_verbosity(tf.logging.INFO)
+    parser = MNISTEagerArgParser()
+    flags = parser.parse_args()
+    print(flags)
 
 
-        # Automatically determine device and data_format
-        (device, data_format) = ('/gpu:0', 'channels_first')
-        if flags.no_gpu or tfe.num_gpus() <= 0:
-            (device, data_format) = ('/cpu:0', 'channels_last')
-        # If data_format is defined in FLAGS, overwrite automatically set value.
-        if flags.data_format is not None:
-            data_format = flags.data_format
-        print('Using device %s, and data format %s.' % (device, data_format))
+    # Automatically determine device and data_format
+    (device, data_format) = ('/gpu:0', 'channels_first')
+    if flags.no_gpu or tfe.num_gpus() <= 0:
+        (device, data_format) = ('/cpu:0', 'channels_last')
+    # If data_format is defined in FLAGS, overwrite automatically set value.
+    if flags.data_format is not None:
+        data_format = flags.data_format
+    print('Using device %s, and data format %s.' % (device, data_format))
 
-        # load data
-        #(x_train, y_train), (x_test, y_test) = load_mnist()
+    # load data
+    #(x_train, y_train), (x_test, y_test) = load_mnist()
 
-        train_ds = mnist_dataset.train(flags.data_dir).shuffle(60000).batch(flags.batch_size)
-        test_ds = mnist_dataset.test(flags.data_dir).batch(flags.batch_size)
-        
-        # Construct model
-        dqnagent = DQNAgent(data_format)
-        model = dqnagent.model
-        model.summary()
-        optimizer = tf.train.MomentumOptimizer(flags.lr, flags.momentum)
+    train_ds = mnist_dataset.train(flags.data_dir).shuffle(60000).batch(flags.batch_size)
+    test_ds = mnist_dataset.test(flags.data_dir).batch(flags.batch_size)
+    
+    # Construct model
+    dqnagent = DQNAgent(data_format)
+    model = dqnagent.model
+    model.summary()
+    optimizer = tf.train.MomentumOptimizer(flags.lr, flags.momentum)
 
-        # Create file writers for writing TensorBoard summaries.
-        if flags.output_dir:
-            # Create directories to which summaries will be written
-            # tensorboard --logdir=<output_dir>
-            # can then be used to see the recorded summaries.
-            train_dir = os.path.join(flags.output_dir, 'train')
-            test_dir = os.path.join(flags.output_dir, 'eval')
-            tf.gfile.MakeDirs(flags.output_dir)
-        else:
-            train_dir = None
-            test_dir = None
+    # Create file writers for writing TensorBoard summaries.
+    if flags.output_dir:
+        # Create directories to which summaries will be written
+        # tensorboard --logdir=<output_dir>
+        # can then be used to see the recorded summaries.
+        train_dir = os.path.join(flags.output_dir, 'train')
+        test_dir = os.path.join(flags.output_dir, 'eval')
+        tf.gfile.MakeDirs(flags.output_dir)
+    else:
+        train_dir = None
+        test_dir = None
 
-        summary_writer = tf.contrib.summary.create_file_writer(
-            train_dir, flush_millis=10000)
-        test_summary_writer = tf.contrib.summary.create_file_writer(
-            test_dir, flush_millis=10000, name='test')
+    summary_writer = tf.contrib.summary.create_file_writer(
+        train_dir, flush_millis=10000)
+    test_summary_writer = tf.contrib.summary.create_file_writer(
+        test_dir, flush_millis=10000, name='test')
 
-    # Create and restore checkpoint (if one exists on the path)
-        checkpoint_prefix = os.path.join(flags.model_dir, 'ckpt')
-        step_counter = tf.train.get_or_create_global_step()
-        checkpoint = tfe.Checkpoint(
-            model=model, optimizer=optimizer, step_counter=step_counter)
-        # Restore variables on creation if a checkpoint exists.
-        checkpoint.restore(tf.train.latest_checkpoint(flags.model_dir))
+# Create and restore checkpoint (if one exists on the path)
+    checkpoint_prefix = os.path.join(flags.model_dir, 'ckpt')
+    step_counter = tf.train.get_or_create_global_step()
+    checkpoint = tfe.Checkpoint(
+        model=model, optimizer=optimizer, step_counter=step_counter)
+    # Restore variables on creation if a checkpoint exists.
+    checkpoint.restore(tf.train.latest_checkpoint(flags.model_dir))
 
-        # Train and evaluate for a set number of epochs.
-        with tf.device(device):
-            for _ in range(flags.train_epochs):
-                start = time.time()
-                with summary_writer.as_default():
-                    #Run train
-                    dqnagent._train(model, optimizer, train_ds, step_counter, flags.log_interval)
-                end = time.time()
-                print('\nTrain time for epoch #%d (%d total steps): %f' %
-                    (checkpoint.save_counter.numpy() + 1,
-                        step_counter.numpy(),
-                        end - start))
-                with test_summary_writer.as_default():
-                    dqnagent._test(model, test_ds)
-                checkpoint.save(checkpoint_prefix)
+    # Train and evaluate for a set number of epochs.
+    with tf.device(device):
+        for _ in range(flags.train_epochs):
+            start = time.time()
+            with summary_writer.as_default():
+                #Run train
+                dqnagent._train(model, optimizer, train_ds, step_counter, flags.log_interval)
+            end = time.time()
+            print('\nTrain time for epoch #%d (%d total steps): %f' %
+                (checkpoint.save_counter.numpy() + 1,
+                    step_counter.numpy(),
+                    end - start))
+            with test_summary_writer.as_default():
+                dqnagent._test(model, test_ds)
+            checkpoint.save(checkpoint_prefix)
 
 
