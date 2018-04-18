@@ -170,13 +170,14 @@ class MNISTEagerArgParser(argparse.ArgumentParser):
             train_epochs=10)
 
 if __name__ == "__main__":
+    tfe.enable_eager_execution()
+
     with tf.device('/gpu:0'):
         #tf.logging.set_verbosity(tf.logging.INFO)
         parser = MNISTEagerArgParser()
         flags = parser.parse_args()
         print(flags)
 
-        tfe.enable_eager_execution()
 
         # Automatically determine device and data_format
         (device, data_format) = ('/gpu:0', 'channels_first')
