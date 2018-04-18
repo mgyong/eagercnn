@@ -1,0 +1,6 @@
+tensorflow==1.7.0
+matplotlib==2.2.2
+numpy==1.12.1
+six==1.10.0
+protobuf==3.5.2.post1
+psutil==5.4.5
